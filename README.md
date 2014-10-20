@@ -22,6 +22,8 @@ You should check the package `tkinter` is already installed.(Do not worry! `tkin
 
 Just download from github tarball:
 
+* [download script-king](https://github.com/dokelung/script-king/tarball/v1.0)
+
 ---
 
 ### Run script-king
