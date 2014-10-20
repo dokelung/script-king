@@ -37,6 +37,10 @@ and you will see the friendly interface of script-king.
 
 ### Introduction
 
+#### Why script-king?
+
+#### Introduction of main window
+
 Following is the graph of script-king main window():
 
 ![script-king main window](https://github.com/dokelung/script-king/blob/master/img/sk-main_win.png)
@@ -79,16 +83,34 @@ What can you do?<br >
 Maybe a script: bash script, python script, ...<br >
 Oh, but you are not familiar with any kind of script.(Yes, you are the expected user of script-king.)<br >
 Or you think write the normal script is a trouble.<br >
-Use script-king!<br >
+
+The answer is ... using script-king!<br >
 
 First, we have to set a token to reprents these 100 files.<br>
-click "create" button and you will see a token window:<br>
+Click "create" button and you will see a token window:<br>
 
 ![script-king token window](https://github.com/dokelung/script-king/blob/master/img/sk-token_win.png)
 
+Let's fill in some input fields to create a token:
 
+1. Symbol: eacn token needs a symbol, now we choose `#` as `Symbol`.
+2. Type: we want to iterate all file names of the directory "bench", so we type "iter" as `Type`.
+3. Click "Choose" button to choose the target directory "bench" or you can type it by yourself.(complete path is needed)
+4. Click "Preview" button to check the results, you should see the first 5 files' name in the previewer.
+5. Click "Ok" button to create this new toekn.
 
+You will see a new token in the token list of main window.
 
+Now, let us write the script in script editor:
+
+```
+DOIT #
+```
+
+Then do `run` in the menu.
+
+Greate! All commands are excuted!
+If you are familar with the process, it is really fast and simple(than any other script).
 
 ---
 
