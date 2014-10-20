@@ -109,7 +109,7 @@ DOIT #
 
 Then do `run` in the menu.
 
-Greate! All commands are excuted!
+Greate! All commands are excuted!<br >
 If you are familar with the process, it is really fast and simple(than any other script).
 
 ---
