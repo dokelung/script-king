@@ -40,6 +40,8 @@ and you will see the friendly interface of script-king.
 
 ### Introduction
 
+![script-king main window](https://github.com/dokelung/script-king/img/sk-main_win.png)
+
 ---
 
 ### A quick example
