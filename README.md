@@ -45,7 +45,7 @@ Following is the graph of script-king main window():
 
 ![script-king main window](https://github.com/dokelung/script-king/blob/master/img/sk-main_win.png)
 
-There are 5 area of the main window:
+There are 5 area in the main window:
 
 1. Window title: list tool's name, version and the current file name.
 2. Menu bar: including all functions.
