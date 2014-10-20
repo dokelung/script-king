@@ -55,9 +55,9 @@ There are 5 area of the main window:
 
 Let me show you how to use and when to use script-king by a simple example.
 
-First, assume you have a exutable file(command) named "DOIT".
-This command takes a file name as its parameter.
-Like that:
+First, assume you have a exutable file(command) named "DOIT".<br >
+This command takes a file name as its parameter.<br >
+Like that:<br >
 
 ```sh
 $ DOIT FILE_NAME
@@ -74,16 +74,17 @@ bench
   |--f100
 ```
 
-I think you do not want to type the command 100 times.
-What can you do?
-Maybe a script: bash script, python script, ...
-Oh, but you are not familiar with any kind of script.(Yes, you are the expected user of script-king.)
-Or you think write the normal script is a trouble.
-Use script-king!
+I think you do not want to type the command 100 times.<br >
+What can you do?<br >
+Maybe a script: bash script, python script, ...<br >
+Oh, but you are not familiar with any kind of script.(Yes, you are the expected user of script-king.)<br >
+Or you think write the normal script is a trouble.<br >
+Use script-king!<br >
 
-First, we have to set a token to reprents these 100 files.
+First, we have to set a token to reprents these 100 files.<br>
+click "create" button and you will see a token window:<br>
 
-click "create" button and you will see a token window:
+![script-king token window](https://github.com/dokelung/script-king/blob/master/img/sk-token_win.png)
 
 
 
