@@ -1,0 +1,740 @@
+#!/usr/bin/env python3
+
+"""
+script-king gui
+author:dokelung (Ko-Lung Yuan)
+version 1.0
+"""
+
+import os
+import pickle
+import subprocess
+import webbrowser
+import tkinter
+import tkinter.filedialog
+import tkinter.messagebox
+import tkinter.ttk
+
+def SetMenu(parent, content):
+    """
+    parent:  the parent of menubar
+    content: is a tuple for each menu, each item is tuple too: (menu name, list of menu commands)
+    """
+    
+    menubar = tkinter.Menu(parent)
+    parent["menu"] = menubar
+    
+    for index, item in enumerate(content):
+        menu = tkinter.Menu(menubar)
+        for label, command, shortcut_text, shortcut, underline in item[1]:
+            if label is None:
+                menu.add_separator()
+            else:
+                menu.add_command(label=label, underline=underline, command=command, accelerator=shortcut_text)
+                parent.bind(shortcut, command)
+        menubar.add_cascade(label=item[0], menu=menu, underline=0)
+    
+    return menubar
+    
+def EzGrid(eledic, layout):
+    """
+    eledic: the elements belong to same parents: is a dictionary -> key:symbol, value:element infos
+    layout: list of str lists -> a table which indicate the placement
+    """        
+    
+    for rindex, row in enumerate(layout):
+        for cindex, col in  enumerate(row):
+            for symbol in col:
+                if eledic[symbol].get('row') == None:
+                    eledic[symbol]['row'] = rindex
+                else:
+                    eledic[symbol]['rowspan'] = rindex - eledic[symbol]['row'] + 1
+                if eledic[symbol].get('column') == None:
+                    eledic[symbol]['column'] = cindex
+                else:
+                    eledic[symbol]['columnspan'] = cindex - eledic[symbol]['column'] + 1
+    for symbol in eledic:
+        element = eledic[symbol].pop('e')
+        element.grid(**(eledic[symbol]))
+        
+    return None
+
+
+class Token:
+    
+    def __init__(self):
+        self.symbol = ''
+        self.type = ''
+        self.value = ''
+        self.namelst = []
+        self.filter = ''
+        self.decorater = ''
+    def setSymbol(self,symbol):
+        self.symbol = symbol
+    def setType(self,type):
+        self.type = type
+    def setValue(self,value):
+        self.value = value
+    def setFilter(self,filter):
+        self.filter = filter
+    def setDecorater(self,decorater):
+        self.decorater = decorater
+        
+    def getSymbol(self):
+        return self.symbol
+    def getType(self):
+        return self.type
+    def getValue(self):
+        return self.value
+    def getFilter(self):
+        return self.filter
+    def getDecorater(self):
+        return self.decorater
+    def genTokenRepreLst(self):
+        type = self.getType()
+        value = self.getValue()
+        replst = []
+        if type == 'fix':
+            replst.append(value)
+        elif type == 'num':
+            low_b, upp_b = value.split('-')
+            for i in range(int(low_b),int(upp_b)+1):
+                replst.append(str(i))
+        elif type == 'iter':
+            replst = os.listdir(value)
+        replst = self.doFilter(replst)
+        replst = self.doDecorater(replst)
+        return replst
+    def doFilter(self,lst):
+        temp_lst = []
+        filter_str = self.getFilter()
+        for item in lst:
+            add = True
+            for line in filter_str.split('\n'):
+                line = line.strip()
+                if line == '':
+                    continue
+                line = line.replace(self.getSymbol(),item)
+                if eval(line) == False:
+                    print('get it')
+                    add = False
+            if add:
+                temp_lst.append(item)
+        return temp_lst
+    def doDecorater(self,lst):
+        temp_lst = []
+        decorater_str = self.getDecorater()
+        for item in lst:
+            new_item = item
+            for line in decorater_str.split('\n'):
+                line = line.strip()
+                if line == '':
+                    continue
+                line = line.replace(self.getSymbol(),item)
+                new_item = str(eval(line))
+            temp_lst.append(new_item)
+        return temp_lst
+    
+class TokenManager:
+
+    def __init__(self):
+        self.tokenlst = []  
+    def increaseTokenNum(self):
+        self.tokenum += 1
+    def getTokeNum(self):
+        return len(self.tokenlst)
+    def appendToken(self, token):
+        self.tokenlst.append(token)
+    def removeToken(self, token):
+        self.tokenlst.remove(token)
+    def getToken(self, index):
+        return self.tokenlst[index]
+    def getTokenList(self):
+        return self.tokenlst
+    def getTokenWithSymbol(self, symbol):
+        for token in self.tokenlst:
+            if token.getSymbol() == symbol:
+                return token
+    def getTokenIndex(self, token):
+        for index, item in enumerate(self.tokenlst):
+            if item == token:
+                return index
+    def isTokenExist(self, token):
+        return (token in self.tokenlst)
+    def changeTokenPosition(self, index, direction):
+        inserttoken = self.tokenlst.pop(index)
+        if direction == 'up':
+            self.tokenlst.insert(index-1,inserttoken)
+        elif direction == 'down':
+            self.tokenlst.insert(index+1,inserttoken)
+    def genUseLst(self):
+        token_lst = []
+        for token in self.tokenlst:
+            symbol = token.getSymbol()
+            token_lst.append((symbol,token.genTokenRepreLst()))
+        return token_lst
+    
+class TokenWin(tkinter.Toplevel):
+    
+    def __init__(self, parent, token, token_manager):
+        """
+        self.token: Token
+        self.accepted: True when save, False when cancel
+        """
+        super().__init__(parent)
+        self.parent = parent
+        self.transient(self.parent)
+        self.title("TokenWin")
+        self.token = token
+        self.accepted = False
+        self.tm = token_manager
+        
+        self.symbol = tkinter.StringVar()
+        self.symbol.set(self.token.getSymbol())
+        self.type = tkinter.StringVar()
+        self.type.set(self.token.getType())
+        self.value = tkinter.StringVar()
+        self.value.set(self.token.getValue())
+
+        
+        # frame ---------------------------------------------------
+        frame = tkinter.Frame(self)
+        frame.grid(row=0, column=0 ,sticky=tkinter.NSEW)
+        
+        # BUTTON --------------------------------------------------
+        self.b_choosedir = tkinter.Button(frame, text="Choose", command=self.chdir)
+        self.b_ok        = tkinter.Button(frame, text="OK"    , command=self.save)
+        self.b_cancel    = tkinter.Button(frame, text="Cancel", command=self.exit)
+        self.b_preview   = tkinter.Button(frame, text='Preview', command=self.preview)
+        
+        # label ---------------------------------------------------
+        l_symbol = tkinter.Label(frame)
+        l_symbol["text"]="Symbol"
+        l_type = tkinter.Label(frame)
+        l_type["text"]="Type(fix/iter/num)"
+        l_value = tkinter.Label(frame)
+        l_value["text"]="Value / Directory / Range(m-n)"
+        l_filter = tkinter.Label(frame)
+        l_filter["text"]="Filter"
+        l_decorater = tkinter.Label(frame)
+        l_decorater["text"]="Decorater"
+        
+        l_viewerl = tkinter.Label(frame)
+        l_viewerl["text"]="PreViewer"
+        self.l_viewer = tkinter.Label(frame)
+        
+        # Entry ---------------------------------------------------
+        self.e_symbol = tkinter.Entry(frame,textvariable=self.symbol)
+        self.e_type = tkinter.Entry(frame,textvariable=self.type)
+        self.e_value = tkinter.Entry(frame,textvariable=self.value)
+        
+        # TEXT ----------------------------------------------------
+        self.t_filter = tkinter.Text(frame)
+        self.t_decorater = tkinter.Text(frame)
+        self.t_filter.insert(0.0,self.token.getFilter())
+        self.t_decorater.insert(0.0,self.token.getDecorater())
+        self.t_filter.config(height=10)
+        self.t_decorater.config(height=10)
+        
+        # Layout --------------------------------------------------
+        EzGrid(
+            {
+              'b1':{'e':self.b_choosedir,'sticky':tkinter.NSEW},
+              'b2':{'e':self.b_ok    ,'sticky':tkinter.NSEW},
+              'b3':{'e':self.b_cancel,'sticky':tkinter.NSEW},
+              'b4':{'e':self.b_preview,'sticky':tkinter.NSEW},
+              'l1':{'e':l_symbol   ,'sticky':tkinter.NSEW},
+              'l2':{'e':l_type     ,'sticky':tkinter.NSEW},
+              'l3':{'e':l_value    ,'sticky':tkinter.NSEW},
+              'l4':{'e':l_filter   ,'sticky':tkinter.NSEW},
+              'l5':{'e':l_decorater,'sticky':tkinter.NSEW},
+              'l6':{'e':l_viewerl  ,'sticky':tkinter.NSEW},
+              'l7':{'e':self.l_viewer   ,'sticky':tkinter.NSEW},
+              'e1':{'e':self.e_symbol,'sticky':tkinter.NSEW}, 
+              'e2':{'e':self.e_type  ,'sticky':tkinter.NSEW}, 
+              'e3':{'e':self.e_value ,'sticky':tkinter.NSEW}, 
+              't1':{'e':self.t_filter    ,'sticky':tkinter.NSEW},
+              't2':{'e':self.t_decorater ,'sticky':tkinter.NSEW}
+            },
+            [
+              [('l6',),('l6',),('l6',),('l6',)],
+              [('l7',),('l7',),('l7',),('b4',)],
+              [('l1',),('l2',),('l3',),('l3',)],
+              [('e1',),('e2',),('e3',),('b1',)],
+              [('l4',),('l4',),('l5',),('l5',)],
+              [('t1',),('t1',),('t2',),('t2',)],
+              [('b2',),('b2',),('b3',),('b3',)]
+            ]
+        )
+
+        frame.columnconfigure(0,weight=1)
+        frame.columnconfigure(1,weight=1)
+        frame.columnconfigure(2,weight=1)
+        frame.columnconfigure(3,weight=1)
+        
+        frame.rowconfigure(0,weight=1)
+        frame.rowconfigure(1,weight=10)
+        frame.rowconfigure(2,weight=1)
+        frame.rowconfigure(3,weight=1)
+        frame.rowconfigure(4,weight=1)
+        frame.rowconfigure(5,weight=1)
+        frame.rowconfigure(6,weight=1)
+        
+        self.window = self.winfo_toplevel()
+        self.window.columnconfigure(0, weight=1)
+        self.window.rowconfigure(0, weight=1)
+        
+        self.geometry("{0}x{1}+{2}+{3}".format(500,350,915,300))
+        
+        self.grab_set()
+        self.wait_window(self)
+    
+    def chdir(self):
+        targetdir = tkinter.filedialog.askdirectory(title='Choose target directory',initialdir='.',parent=self.parent)
+        self.e_value.delete(0,tkinter.END)
+        self.e_value.insert(0,targetdir)
+    
+    def save(self):
+        if not self.checkfield():
+            return
+        self.token.setSymbol(self.e_symbol.get())
+        self.token.setType(self.e_type.get())
+        self.token.setValue(self.e_value.get())
+        self.token.setFilter(self.t_filter.get('0.0',tkinter.END)) 
+        self.token.setDecorater(self.t_decorater.get('0.0',tkinter.END))
+        self.accepted = True
+        self.parent.focus_set()
+        self.destroy()
+    
+    def preview(self):
+        if not self.checkfield():
+            return
+        self.token.setSymbol(self.e_symbol.get())
+        self.token.setType(self.e_type.get())
+        self.token.setValue(self.e_value.get())
+        self.token.setFilter(self.t_filter.get('0.0',tkinter.END)) 
+        self.token.setDecorater(self.t_decorater.get('0.0',tkinter.END))
+        self.l_viewer["text"] = self.token.genTokenRepreLst()[0:5]
+    
+    def checkfield(self):
+        if ' ' in self.e_symbol.get():
+            tkinter.messagebox.showwarning('Info Warning','No blank char in symbol')
+        elif len(self.e_symbol.get())>10:
+            tkinter.messagebox.showwarning('Info Warning','Symbol is too long')
+        elif self.e_symbol.get()=='':
+            tkinter.messagebox.showwarning('Info Warning','No Symbol')
+        elif self.e_type.get()=='':
+            tkinter.messagebox.showwarning('Info Warning','No Type')
+        elif not (self.e_type.get() in {'fix','iter','num'}):
+            tkinter.messagebox.showwarning('Info Warning','Type must be fix/iter/num')
+        elif self.e_value.get() == '':
+            tkinter.messagebox.showwarning('Info Warning','No Value')
+        elif self.e_type.get()=='iter' and not os.path.isdir(self.e_value.get()):
+            tkinter.messagebox.showwarning('Info Warning', 'iter token must have value which is directory path')
+        elif self.e_type.get()=='num':
+            num_range = self.e_value.get()
+            try:
+                start, end = num_range.split('-')
+                if int(end)-int(start) < 0:
+                    tkinter.messagebox.showwarning('Info Warning', 'Range has problem')
+                else:
+                    return True
+            except:
+                tkinter.messagebox.showwarning('Info Warning', 'Range has problem')
+        elif self.e_symbol.get() in [token.getSymbol() for token in  self.tm.tokenlst]:
+            if self.token.getSymbol()==self.e_symbol.get():
+                return True
+            tkinter.messagebox.showwarning('Info Warning', 'Symbol has been used')
+        else:
+            return True
+
+    def exit(self):
+        self.parent.focus_set()
+        self.destroy()
+    
+class MainWindow:
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.filename = None
+        self.dirty = False 
+        self.tm = TokenManager()
+
+        self.parent.title("Script King 1.0 - Unnamed")
+        # menu ---------------------------------------------------
+        filemenu = [  ("New..." ,self.fileNew,"Ctrl+n","<Control-n>",0),
+                      ("Open...",self.fileOpen,"Ctrl+o","<Control-o>",0),
+                      ("Save"   ,self.fileSave,"Ctrl+s","<Control-s>",0),
+                      (None, None, None, None, 0),
+                      ("Quit"   ,self.fileQuit,  "Ctrl+q","<Control-q>",0) ]
+                      
+        tokenmenu = [  ("Create" ,self.createToken,"Ctrl+c",'<Control-c>',0),
+                       ("Edit"   ,self.editToken,"Ctrl+e",'<Control-e>',0),
+                       ("Delete" ,self.deleteToken,"Ctrl+d",'<Control-d>',0),]
+        
+        actmenu   = [  ("Run"          ,self.run   ,"Ctrl+r",'<Control-r>',0),
+                       ("Run & Catch"  ,self.catch ,"Ctrl+c",'<Control-c>',0),
+                       ("Write"        ,self.write ,"Ctrl+w",'<Control-w>',0),]
+                       
+        helpmenu = [  ("Online Guide"  ,self.guide,"Ctrl+g",'<Control-g>',0),
+                       ("Version"      ,self.version,"Ctrl+v",'<Control-v>',0),]
+
+        SetMenu(self.parent,(
+                ('File',filemenu),
+                ('Token',tokenmenu),
+                ('Act',actmenu),
+                ('Help',helpmenu)
+        ))
+        
+        # frame ---------------------------------------------------
+        frame = tkinter.Frame(self.parent)
+        frame.grid(row=0, column=0 ,sticky=tkinter.NSEW)
+        
+        # label ---------------------------------------------------
+        self.editor_label = tkinter.Label(frame)
+        self.editor_label["text"]="Script Editor"
+        tokenlst_label = tkinter.Label(frame)
+        tokenlst_label["text"]="Token List"
+        
+        # Editor --------------------------------------------------       
+        self.scr_text = tkinter.Text(frame)
+        self.scr_text.bind('<Key>',self.setDirty) 
+        
+        # listbox -------------------------------------------------        
+        self.token_lstbox = tkinter.Listbox(frame, selectmode=tkinter.BROWSE)
+        
+        # BUTTON --------------------------------------------------
+        self.cretoken = tkinter.Button(frame, text="Create",width=5 ,command=self.createToken)
+        self.editoken = tkinter.Button(frame, text="Edit"  ,width=5 ,command=self.editToken)
+        self.deltoken = tkinter.Button(frame, text="Delete",width=5 ,command=self.deleteToken)
+        self.b_up = tkinter.Button(frame, text="Up ^"  ,width=5 ,command=self.tokenUp)
+        self.b_down = tkinter.Button(frame, text="Down v",width=5 ,command=self.tokenDown)
+        
+        # statusbar -----------------------------------------------        
+        self.statusbar = tkinter.Label(frame, text='Ready...', anchor=tkinter.E)
+        self.statusbar.after(5000, self.clearStatusBar)
+        
+        # Layout --------------------------------------------------
+        EzGrid(
+            {
+              'el':{'e':self.editor_label},
+              'tl':{'e':tokenlst_label},
+              'tx':{'e':self.scr_text,'sticky':tkinter.NSEW},
+              'cb':{'e':self.cretoken},
+              'db':{'e':self.deltoken},
+              'eb':{'e':self.editoken},
+              'bu':{'e':self.b_up},
+              'bd':{'e':self.b_down},
+              'lb':{'e':self.token_lstbox,'sticky':tkinter.NSEW},
+              'st':{'e':self.statusbar,'sticky':tkinter.W}
+            },
+            [
+              [('tl',),('tl',)],
+              [('lb',),('cb',)],
+              [('lb',),('eb',)],
+              [('lb',),('db',)],
+              [('lb',),('bu',)],
+              [('lb',),('bd',)],              
+              [('el',),('el',)],                            
+              [('tx',),('tx',)],
+              [('st',),('st',)]
+            ]
+        )
+        
+        frame.rowconfigure(0,weight=1)
+        frame.rowconfigure(1,weight=100)
+        frame.rowconfigure(2,weight=100)
+        frame.rowconfigure(3,weight=100)
+        frame.rowconfigure(4,weight=100)
+        frame.rowconfigure(5,weight=100)
+        frame.rowconfigure(6,weight=1)
+        frame.rowconfigure(7,weight=999)
+        frame.rowconfigure(8,weight=1)
+        
+        frame.columnconfigure(0,weight=999)
+        frame.columnconfigure(1,weight=1)
+        
+        window = self.parent.winfo_toplevel()
+        window.columnconfigure(0, weight=1)
+        window.rowconfigure(0, weight=1)
+        
+        parent.geometry("{0}x{1}+{2}+{3}".format(400,400,500,300))
+                       
+    # Action ------------------------------------------------------------
+    def createToken(self,*ignore):
+        token = Token()
+        token_window = TokenWin(self.parent, token, self.tm)
+        if token_window.accepted == True:
+            self.dirty = True
+            self.tm.appendToken(token_window.token)
+            self.statusbar['text'] = 'New Token ( symbol: '+token.getSymbol()+' ) has been created'
+            self.statusbar.after(5000, self.clearStatusBar)
+            self.refreshToken()
+    def editToken(self,*ignore):
+        try:
+            picked_item = self.token_lstbox.get(self.token_lstbox.curselection())
+        except:
+            tkinter.messagebox.showwarning('Warning','Select Nothing!')
+            return
+        symbol = picked_item.split(' ')[1]
+        token = self.tm.getTokenWithSymbol(symbol)
+        token_window = TokenWin(self.parent, token, self.tm)
+        if token_window.accepted == True:
+            self.dirty = True
+            self.statusbar['text'] = 'Token ( symbol: '+token.getSymbol()+' ) has been modified'
+            self.statusbar.after(5000, self.clearStatusBar)
+            self.refreshToken()
+    def deleteToken(self,*ignore):
+        try:
+            picked_item = self.token_lstbox.get(self.token_lstbox.curselection())
+        except:
+            tkinter.messagebox.showwarning('Warning','Select Nothing!')
+            return
+        self.dirty = True
+        symbol = picked_item.split(' ')[1]
+        token = self.tm.getTokenWithSymbol(symbol)
+        self.statusbar['text'] = 'Token ( symbol: '+token.getSymbol()+' ) has been deleted'
+        self.statusbar.after(5000, self.clearStatusBar)
+        self.tm.removeToken(token)
+        self.refreshToken()       
+    def tokenUp(self):
+        try:
+            picked_item = self.token_lstbox.get(self.token_lstbox.curselection())
+        except:
+            tkinter.messagebox.showwarning('Warning','Select Nothing!')
+            return
+        symbol = picked_item.split(' ')[1]
+        token = self.tm.getTokenWithSymbol(symbol)
+        index = self.tm.getTokenIndex(token)
+        if index == 0:
+            return
+        self.tm.changeTokenPosition(index,'up')
+        self.refreshToken()
+        self.dirty = True
+    def tokenDown(self):
+        try:
+            picked_item = self.token_lstbox.get(self.token_lstbox.curselection())
+        except:
+            tkinter.messagebox.showwarning('Warning','Select Nothing!')
+            return
+        symbol = picked_item.split(' ')[1]
+        token = self.tm.getTokenWithSymbol(symbol)
+        index = self.tm.getTokenIndex(token)
+        self.tm.changeTokenPosition(index,'down')
+        self.refreshToken()
+        self.dirty = True
+    def refreshToken(self):
+        self.token_lstbox.delete(0,tkinter.END)
+        for token in self.tm.getTokenList():
+            self.token_lstbox.insert(tkinter.END,'Symbol: '+token.getSymbol()+'  ['+token.getType()+']'+' ----> '+token.getValue())
+    def okayToContinue(self):
+        if not self.dirty:
+            return True
+        reply = tkinter.messagebox.askyesnocancel('Script King - Unsaved Changes','Save unsaved changes?', parent=self.parent)
+        if reply == None:
+            return False
+        if reply:
+            return self.fileSave()
+        return True
+    def clearStatusBar(self):
+        self.statusbar["text"] = ''
+    def fileNew(self,*ignore):
+        if not self.okayToContinue():
+            return
+        self.dirty = False
+        self.filename = None
+        self.parent.title("Script King 1.0 - Unnamed")
+        self.statusbar['text'] = 'Create new file...'
+        self.statusbar.after(5000, self.clearStatusBar)
+        self.tm = TokenManager()
+        self.refreshToken()
+        self.scr_text.delete(0.0,tkinter.END)        
+    def fileOpen(self,*ignore):
+        if not self.okayToContinue():
+            return
+        dir = os.path.dirname(self.filename) if self.filename is not None else '.'
+        filename = tkinter.filedialog.askopenfilename(
+            title = "Script King - Open file",
+            initialdir = dir,
+            filetypes = [("sk files", "*.sk")],
+            defaultextension = ".sk",
+            parent = self.parent)
+        if filename:
+            self.loadFile(filename)
+    def loadFile(self, filename):
+        self.filename = filename
+        self.dirty = False
+        try:
+            with open(self.filename,'rb') as reader:
+                self.tm, text = pickle.load(reader)
+            self.scr_text.delete('0.0',tkinter.END)
+            self.scr_text.insert('0.0',text)
+            self.refreshToken()
+            self.statusbar['text'] = 'Load file...'
+            self.statusbar.after(5000, self.clearStatusBar)
+            self.parent.title("Script King 1.0 - {0}".format(os.path.basename(self.filename)))
+        except (EnvironmentError, pickle.PickleError) as err:
+            tkinter.messagebox.showwarning('Script King - Error',
+                                            'Failed to load {0}:\n{1}'.format(self.filename, err),
+                                            parent=self.parent)
+    def fileSave(self,*ignore):
+        text = self.scr_text.get('0.0',tkinter.END)
+        if self.filename is None:
+            filename = tkinter.filedialog.asksaveasfilename(
+                title = "Script King - Save file",
+                initialdir='.',
+                filetypes = [("sk files", "*.sk")],
+                defaultextension = ".sk",
+                parent = self.parent)
+            if not filename:
+                return False
+            self.filename = filename
+            if not self.filename.endswith(".sk"):
+                self.filename += '.sk'
+        try:
+            with open(self.filename,'wb') as writer:
+                pickle.dump((self.tm,text), writer)
+            self.dirty = False
+            self.statusbar['text'] = 'Save file...'
+            self.statusbar.after(5000, self.clearStatusBar)
+            self.parent.title("Script King 1.0 - {0}".format(os.path.basename(self.filename)))
+        except (EnvironmentError, pickle.PickleError) as err:
+            tkinter.messagebox.showwarning('Script King - Error',
+                                            'Failed to save {0}:\n{1}'.format(self.filename, err),
+                                            parent=self.parent)
+        return True           
+    def fileQuit(self,*ignore):
+        if self.okayToContinue():
+            self.parent.destroy()
+    def setDirty(self, *ignore):
+        self.dirty = True
+    def write(self, *ignore):
+        filename = tkinter.filedialog.asksaveasfilename(
+                title = "Script King - Write Script",
+                initialdir='.',
+                defaultextension = ".sc",
+                parent = self.parent)
+        text = self.scr_text.get('0.0',tkinter.END)
+        self.statusbar['text'] = 'Write out to '+filename
+        self.statusbar.after(5000, self.clearStatusBar)
+        with open(filename,'w') as writer:
+            use_lst = self.tm.genUseLst()
+            index_lst = []
+            len_lst = []
+            for i in range(len(use_lst)):
+                index_lst.append(0)
+            for pair in use_lst:
+                len_lst.append(len(pair[1]))
+            done = False
+            while not done:
+                rep_dic = {}
+                for i, pair in enumerate(use_lst):
+                    j = index_lst[i]
+                    rep_dic[pair[0]] = pair[1][j]
+                for line in text.split('\n'):
+                    if line == '':
+                        continue
+                    for symbol in rep_dic:
+                        if symbol in line:
+                            line = line.replace(symbol,rep_dic[symbol])
+                    print(line.strip(),file=writer)
+                index_lst[-1] += 1
+                for i in range(len(index_lst))[::-1]:
+                    if i==0:
+                        if index_lst[0] == len_lst[0]:
+                            done = True
+                    else:
+                        if index_lst[i] == len_lst[i]:
+                            index_lst[i] = 0
+                            index_lst[i-1] += 1
+                        else:
+                            break
+    def run(self, *ignore):
+        text = self.scr_text.get('0.0',tkinter.END)
+        self.statusbar['text'] = 'Run ...'
+        self.statusbar.after(5000, self.clearStatusBar)
+        use_lst = self.tm.genUseLst()
+        index_lst = []
+        len_lst = []
+        for i in range(len(use_lst)):
+            index_lst.append(0)
+        for pair in use_lst:
+            len_lst.append(len(pair[1]))
+        done = False
+        while not done:
+            rep_dic = {}
+            for i, pair in enumerate(use_lst):
+                j = index_lst[i]
+                rep_dic[pair[0]] = pair[1][j]
+            for line in text.split('\n'):
+                if line == '':
+                    continue
+                for symbol in rep_dic:
+                    if symbol in line:
+                        line = line.replace(symbol,rep_dic[symbol])
+                subprocess.call(line.strip(),shell='True')
+            index_lst[-1] += 1
+            for i in range(len(index_lst))[::-1]:
+                if i==0:
+                    if index_lst[0] == len_lst[0]:
+                        done = True
+                else:
+                    if index_lst[i] == len_lst[i]:
+                        index_lst[i] = 0
+                        index_lst[i-1] += 1
+                    else:
+                        break
+    def catch(self, *ignore):
+        filename = tkinter.filedialog.asksaveasfilename(
+                title = "Script King - Run and Catch",
+                initialdir='.',
+                defaultextension = ".log",
+                parent = self.parent)
+        self.statusbar['text'] = 'Run and redirect the stdout to '+filename
+        self.statusbar.after(5000, self.clearStatusBar)
+        text = self.scr_text.get('0.0',tkinter.END)
+        use_lst = self.tm.genUseLst()
+        index_lst = []
+        len_lst = []
+        for i in range(len(use_lst)):
+            index_lst.append(0)
+        for pair in use_lst:
+            len_lst.append(len(pair[1]))
+        # clear file
+        with open(filename,'w') as writer:
+            print('',end='')
+        done = False
+        while not done:
+            rep_dic = {}
+            for i, pair in enumerate(use_lst):
+                j = index_lst[i]
+                rep_dic[pair[0]] = pair[1][j]
+            for line in text.split('\n'):
+                if line == '':
+                    continue
+                for symbol in rep_dic:
+                    if symbol in line:
+                        line = line.replace(symbol,rep_dic[symbol])
+                subprocess.call(line.strip()+' >> '+filename,shell='True')
+            index_lst[-1] += 1
+            for i in range(len(index_lst))[::-1]:
+                if i==0:
+                    if index_lst[0] == len_lst[0]:
+                        done = True
+                else:
+                    if index_lst[i] == len_lst[i]:
+                        index_lst[i] = 0
+                        index_lst[i-1] += 1
+                    else:
+                        break
+    def guide(self, *ignore):
+        webbrowser.open('www.google.com.tw')
+    def version(self, *ignore):
+        tkinter.messagebox.showinfo('Script King - Version', 'script-king 1.0\n by dokelung @ 2012.10.26')
+    def idle(self): # for testing
+        pass
+
+     
+root = tkinter.Tk()
+skgui = MainWindow(root)
+root.mainloop()   
