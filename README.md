@@ -95,9 +95,9 @@ Let's fill in some input fields to create a token:
 
 1. Symbol: eacn token needs a symbol, now we choose `#` as `Symbol`.
 2. Type: we want to iterate all file names of the directory "bench", so we type "iter" as `Type`.
-3. Click "Choose" button to choose the target directory "bench" or you can type it by yourself.(complete path is needed)
-4. Click "Preview" button to check the results, you should see the first 5 files' name in the previewer.
-5. Click "Ok" button to create this new toekn.
+3. Click `Choose` button to choose the target directory "bench" or you can type it by yourself.(complete path is needed)
+4. Click `Preview` button to check the results, you should see the first 5 files' name in the previewer.
+5. Click `Ok` button to create this new toekn.
 
 You will see a new token in the token list of main window.
 
@@ -110,27 +110,55 @@ DOIT #
 Then do `run` in the menu.
 
 Greate! All commands are excuted!<br >
-If you are familar with the process, it is really fast and simple(than any other script).
+If you are familar with the process, it is really fast and simple(than any other scripts).
 
 ---
 
 ### Token
 
+Token is a main object of script-king.<br >
+We use token's symbol to represent some values.
+You can simply think tokens are like variables. 
+
 ---
 
 #### Create/Edit/Remove a token
 
+You can use button `Create` or `Create` option in menu to create a new token.<br >
+Choose an existing token then it can be edited by the `Edit` button or `Edit` option in menu.<br >
+Choose an existing token then use `Delete` or `Delete` option in menu to remove it.
+
 #### Symbol
 
+A symbol is like a literal.<br >
+We would use symbols to represent something in our scripts.
+
+A letter, a word, or any syntax is avalible.<br >
+But the blanks are not allowed for symbol.
+
 #### Type
+
+There are 3 types of token.
+
+`fix`:  this token just represents a constant string, it is usually used to represent a directory name.
+`iter`: this token represents the files names in a specified directory.
+`num`:  this token represents numbers from the specifed range.
 
 #### Value
 
 #### Preview
 
+After setting symbol, its type and its value, you can click `Preview` to check the first 5 items of this token.
+
 #### Filter
 
+
+
 #### Decorater
+
+---
+
+### Script convertion
 
 ---
 
