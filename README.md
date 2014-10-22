@@ -97,7 +97,7 @@ Let's fill in some input fields to create a token:
 2. Type: we want to iterate all file names of the directory "bench", so we type "iter" as `Type`.
 3. Click `Choose` button to choose the target directory "bench" or you can type it by yourself.(complete path is needed)
 4. Click `Preview` button to check the results, you should see the first 5 files' name in the previewer.
-5. Click `Ok` button to create this new toekn.
+5. Click `Ok` button to create this new token.
 
 You will see a new token in the token list of main window.
 
@@ -164,8 +164,9 @@ if '.f' in '#'
 
 note that the symbol should be in the single quotation marks ''.
 
-#### Decoraer
+#### Decorator
 
+script-king also supports other python statements.<br >
 
 
 ---
@@ -180,6 +181,12 @@ note that the symbol should be in the single quotation marks ''.
 
 #### Catch results
 
+Choose the `Run and catch` option in menus to run the script and save the results to a specified file.
+
 ---
 
 ### Save and open sk files
+
+You can save the current project to a sk file and reload it after.
+
+Choosethe 
