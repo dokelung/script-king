@@ -140,8 +140,8 @@ But the blanks are not allowed for symbol.
 
 There are 3 types of token.
 
-`fix`:  this token just represents a constant string, it is usually used to represent a directory name.
-`iter`: this token represents the files names in a specified directory.
+`fix`:  this token just represents a constant string, it is usually used to represent a directory name.<br >
+`iter`: this token represents the files names in a specified directory.<br >
 `num`:  this token represents numbers from the specifed range.
 
 #### Value
@@ -152,9 +152,21 @@ After setting symbol, its type and its value, you can click `Preview` to check t
 
 #### Filter
 
+Filter allows user to reserve some items and remove the others from a token.
+It uses the if statement of python.
+
+For example, if we want to resere the file names which contain string '.f' from a token whose symbol is #.<br >
+We can write following sentence in filter:
+
+```python
+if '.f' in '#'
+```
+
+note that the symbol should be in the single quotation marks ''.
+
+#### Decoraer
 
 
-#### Decorater
 
 ---
 
